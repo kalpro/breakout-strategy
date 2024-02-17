@@ -1,0 +1,101 @@
+//@version=5
+indicator("Major Currency Pairs Monthly Support/Resistance & Consolidation with Email Alerts", overlay=true)
+
+// Define function to calculate monthly pivot levels using Donchian Channels
+monthly_donchian() =>
+    high_monthly = ta.highest(high, 20) // Look back 20 bars for monthly data
+    low_monthly = ta.lowest(low, 20)
+    close_monthly = close
+   
+    high_monthly := ta.highest(high, 20)
+    low_monthly := ta.lowest(low, 20)
+    close_monthly := close
+   
+    [high_monthly, low_monthly, close_monthly]
+
+// List of all currency pairs to check
+var string[] all_pairs = array.new_string(0)
+array.push(all_pairs, "GBPUSD")
+array.push(all_pairs, "EURUSD")
+array.push(all_pairs, "AUDUSD")
+array.push(all_pairs, "NZDUSD")
+array.push(all_pairs, "USDCHF")
+array.push(all_pairs, "USDJPY")
+array.push(all_pairs, "USDCAD")
+array.push(all_pairs, "EURCAD")
+array.push(all_pairs, "EURAUD")
+array.push(all_pairs, "EURNZD")
+array.push(all_pairs, "EURCHF")
+array.push(all_pairs, "EURJPY")
+array.push(all_pairs, "EURGBP")
+array.push(all_pairs, "CHFJPY")
+array.push(all_pairs, "CADJPY")
+array.push(all_pairs, "NZDJPY")
+array.push(all_pairs, "AUDJPY")
+array.push(all_pairs, "GBPJPY")
+array.push(all_pairs, "GBPCAD")
+array.push(all_pairs, "AUDCAD")
+array.push(all_pairs, "NZDCAD")
+array.push(all_pairs, "CADCHF")
+array.push(all_pairs, "AUDCHF")
+array.push(all_pairs, "AUDNZD")
+array.push(all_pairs, "GBPAUD")
+array.push(all_pairs, "NZDCHF")
+array.push(all_pairs, "GBPNZD")
+array.push(all_pairs, "GBPCHF")
+
+// Check if price for each major pair is at monthly resistance or support
+bool[] is_at_monthly_resistance = array.new_bool(0, false)
+bool[] is_at_monthly_support = array.new_bool(0, false)
+
+// Check if all major pairs are in uptrend at resistance or downtrend at support
+bool all_in_uptrend_at_resistance = false // Initialize with a default value
+bool all_in_downtrend_at_support = false // Initialize with a default value
+
+// Define the monthly donchian levels outside of the loop
+[high_monthly, low_monthly, close_monthly] = monthly_donchian()
+
+for i = 0 to array.size(all_pairs) - 1
+    pair = array.get(all_pairs, i)
+    pair_data = request.security(pair, "M", high_monthly)
+    pair_high = pair_data[0]
+    pair_data = request.security(pair, "M", low_monthly)
+    pair_low = pair_data[0]
+    array.push(is_at_monthly_resistance, close >= pair_high)
+    array.push(is_at_monthly_support, close <= pair_low)
+
+    // Update the values of the variables
+    all_in_uptrend_at_resistance := all_in_uptrend_at_resistance or (close >= pair_high)
+    all_in_downtrend_at_support := all_in_downtrend_at_support or (close <= pair_low)
+
+// Plot arrows to indicate monthly resistance or support for the current symbol
+plotshape(all_in_uptrend_at_resistance, style=shape.triangleup, location=location.abovebar, color=color.red, size=size.small)
+plotshape(all_in_downtrend_at_support, style=shape.triangledown, location=location.belowbar, color=color.green, size=size.small)
+
+// Define function to identify consolidation
+is_consolidation(high_monthly, low_monthly) =>
+    // Check for consolidation on monthly chart
+    is_monthly_consolidation = close >= low_monthly and close <= high_monthly
+   
+    // Check for consolidation on weekly chart
+    is_weekly_consolidation = close >= ta.lowest(low, 20) and close <= ta.highest(high, 20)
+   
+    // Check for consolidation on daily chart
+    is_daily_consolidation = close >= ta.lowest(low, 20) and close <= ta.highest(high, 20)
+
+    // Return array of consolidation flags
+    array.new_bool(is_monthly_consolidation, is_weekly_consolidation, is_daily_consolidation)
+
+// Retrieve consolidation flags
+[monthly_consolidation, weekly_consolidation, daily_consolidation] = is_consolidation(high_monthly, low_monthly)
+
+// Plot dots to indicate consolidation on monthly, weekly, and daily charts only if it occurs at monthly support or resistance
+plotshape(monthly_consolidation and (all_in_uptrend_at_resistance or all_in_downtrend_at_support), style=shape.circle, location=location.abovebar, color=color.blue, size=size.small)
+plotshape(weekly_consolidation, style=shape.circle, location=location.abovebar, color=color.blue, size=size.small)
+plotshape(daily_consolidation, style=shape.circle, location=location.abovebar, color=color.blue, size=size.small)          
+
+// Alert condition
+alertcondition(monthly_consolidation and (all_in_uptrend_at_resistance or all_in_downtrend_at_support), title="Major Currency Pairs Monthly Consolidation Alert", message="Consolidation detected at monthly support/resistance for major currency pairs")
+
+
+
